@@ -3,12 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>العرباية 🛒 - تخزين الملفات والصور</title>
+<title>📦 العرباية - عرفات الدبواني ⚛️ باستخدام IndexedDB</title>
 <style>
   body {
     font-family: "Cairo", sans-serif;
-    background: #f5f5f5;
+    background: #f4f6f9;
     text-align: center;
+    margin: 0;
+    padding: 0;
   }
   header {
     background: #007bff;
@@ -24,7 +26,6 @@
     margin: 10px;
     font-size: 18px;
     cursor: pointer;
-    transition: 0.3s;
   }
   button:hover {
     background: #0056b3;
@@ -40,8 +41,7 @@
     box-shadow: 0 0 10px #ccc;
   }
   img {
-    width: 120px;
-    height: auto;
+    width: 150px;
     border-radius: 10px;
     margin: 10px;
   }
@@ -76,86 +76,105 @@
 <body>
 
 <header>
-  <h1>📂 إدارة ملفاتي والعرباية 🛒</h1>
+  <h1> المهندس/عرفات الدبواني ⚛️📂 تخزين الملفات باستخدام IndexedDB</h1>
 </header>
 
-<button onclick="requestPermission()">📁 اختيار ملفات</button>
-<button onclick="viewFiles()">🧾 عرض الملفات</button>
+<button onclick="selectFiles()">📁 اختيار ملفات</button>
+<button onclick="displayFiles()">🧾 عرض الملفات</button>
 
 <div id="fileList"></div>
 
-<!-- زر العرباية -->
-<div id="cart" onclick="viewFiles()">
+<div id="cart" onclick="displayFiles()">
   🛒
   <div id="cartCount">0</div>
 </div>
 
 <script>
-// دالة طلب الإذن وفتح الملفات
-function requestPermission() {
-  const confirmAccess = confirm("هل تريد السماح بالوصول إلى ملفاتك وإضافتها إلى العرباية؟");
-  if (confirmAccess) {
-    const input = document.createElement("input");
-    input.type = "file";
-    input.multiple = true;
-    input.onchange = e => handleFiles(e.target.files);
-    input.click();
-  }
+let db;
+
+// فتح قاعدة البيانات
+const request = indexedDB.open("MyFileStorage", 1);
+request.onupgradeneeded = event => {
+  db = event.target.result;
+  db.createObjectStore("files", { keyPath: "id", autoIncrement: true });
+};
+request.onsuccess = event => {
+  db = event.target.result;
+  updateCartCount();
+};
+request.onerror = event => {
+  alert("❌ فشل فتح قاعدة البيانات: " + event.target.errorCode);
+};
+
+// اختيار الملفات
+function selectFiles() {
+  const confirmAccess = confirm("هل تريد السماح بالوصول إلى ملفاتك لإضافتها إلى العرباية؟");
+  if (!confirmAccess) return;
+  
+  const input = document.createElement("input");
+  input.type = "file";
+  input.multiple = true;
+  input.onchange = e => saveFiles(e.target.files);
+  input.click();
 }
 
-// حفظ الملفات كـ Base64 في localStorage
-function handleFiles(files) {
-  const stored = JSON.parse(localStorage.getItem("myFiles")) || [];
+// حفظ الملفات داخل IndexedDB
+function saveFiles(files) {
+  const transaction = db.transaction(["files"], "readwrite");
+  const store = transaction.objectStore("files");
   let count = 0;
-
   for (let file of files) {
     const reader = new FileReader();
     reader.onload = function(e) {
-      const fileData = {
+      store.add({
         name: file.name,
         type: file.type,
-        content: e.target.result  // هذا يحتوي على بيانات الملف الفعلية
-      };
-      stored.push(fileData);
-      localStorage.setItem("myFiles", JSON.stringify(stored));
-      updateCartCount();
+        data: e.target.result
+      });
       count++;
-      if (count === files.length) alert("✅ تم حفظ جميع الملفات داخل العرباية!");
+      if (count === files.length) {
+        alert("✅ تم حفظ جميع الملفات داخل العرباية!");
+        updateCartCount();
+      }
     };
-    reader.readAsDataURL(file);
+    reader.readAsArrayBuffer(file);
   }
 }
 
 // عرض الملفات
-function viewFiles() {
-  const files = JSON.parse(localStorage.getItem("myFiles")) || [];
-  let html = "<h3>📁 الملفات داخل العرباية:</h3>";
-
-  if (files.length === 0) {
-    html += "<p>لا توجد ملفات محفوظة.</p>";
-  } else {
-    files.forEach(f => {
-      html += `<p><strong>${f.name}</strong> (${f.type})</p>`;
-      if (f.type.startsWith("image/")) {
-        html += `<img src="${f.content}" alt="${f.name}">`;
-      } else {
-        html += `<a href="${f.content}" download="${f.name}">⬇️ تحميل الملف</a>`;
-      }
-      html += "<hr>";
-    });
-  }
-
-  document.getElementById("fileList").innerHTML = html;
+function displayFiles() {
+  const transaction = db.transaction(["files"], "readonly");
+  const store = transaction.objectStore("files");
+  const request = store.getAll();
+  request.onsuccess = function(e) {
+    const files = e.target.result;
+    let html = "<h3>📁 الملفات المحفوظة:</h3>";
+    if (files.length === 0) {
+      html += "<p>لا توجد ملفات محفوظة.</p>";
+    } else {
+      files.forEach(f => {
+        const blob = new Blob([f.data], { type: f.type });
+        const url = URL.createObjectURL(blob);
+        html += `<p><strong>${f.name}</strong></p>`;
+        if (f.type.startsWith("image/")) {
+          html += `<img src="${url}" alt="${f.name}">`;
+        }
+        html += `<br><a href="${url}" download="${f.name}">⬇️ تحميل</a><hr>`;
+      });
+    }
+    document.getElementById("fileList").innerHTML = html;
+  };
 }
 
-// تحديث عداد العرباية
+// تحديث عدد الملفات في العرباية
 function updateCartCount() {
-  const files = JSON.parse(localStorage.getItem("myFiles")) || [];
-  document.getElementById("cartCount").textContent = files.length;
+  const transaction = db.transaction(["files"], "readonly");
+  const store = transaction.objectStore("files");
+  const countRequest = store.count();
+  countRequest.onsuccess = function() {
+    document.getElementById("cartCount").textContent = countRequest.result;
+  };
 }
-
-// تحديث العد عند تحميل الصفحة
-updateCartCount();
 </script>
 
 </body>
