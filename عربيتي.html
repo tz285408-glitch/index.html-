@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>عربيتي - إدارة الأصناف</title>
+<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Tajawal&display=swap');
+body{font-family:"Tajawal",sans-serif;direction:rtl;background-color:#f0f8ff;margin:0;padding:0;}
+h2{text-align:center;color:#0d6efd;margin:20px 0;}
+.container{width:100%;padding:20px;box-sizing:border-box;}
+input, button{padding:10px;border-radius:8px;border:1px solid #ccc;font-size:14px;}
+button{cursor:pointer;background-color:#0d6efd;color:#fff;border:none;}
+button:hover{background-color:#084298;}
+#suggestions{background:#fff;position:absolute;z-index:1000;width:100%;border:1px solid #ccc;border-radius:8px;display:none;max-height:150px;overflow-y:auto;}
+table{width:100%;border-collapse:collapse;margin-top:15px;}
+th,td{border:1px solid #ccc;padding:8px;text-align:center;white-space:normal;overflow-wrap:break-word;}
+th{background-color:#0d6efd;color:#fff;}
+tr:nth-child(even){background-color:#e7f1ff;}
+tr:hover{background-color:#d0e4ff;}
+.action-buttons{display:flex;gap:5px;justify-content:center;}
+#summary{margin-top:10px;font-weight:bold;}
+</style>
+</head>
+<body>
+
+<h2>🛒 عربيتي</h2>
+<div class="container">
+
+<label>اسم الصنف أو رمز الصنف:</label>
+<div style="position:relative;display:flex;gap:10px;">
+  <input type="text" id="searchItem" placeholder="اكتب الاسم أو امسح الرمز" style="flex:1;" autocomplete="off">
+  <div id="suggestions"></div>
+  <button type="button" id="scanBtn">📷 مسح</button>
+</div>
+
+<div id="itemInfo" style="display:none;margin-top:10px;">
+  <p>اسم الصنف: <span id="infoName"></span></p>
+  <p>رمز الصنف: <span id="infoCode"></span></p>
+  <p>سعر البيع: <span id="infoPrice"></span></p>
+  <label>الكمية:</label>
+  <input type="number" id="itemQty" value="1" min="1" style="width:80px;">
+  <button id="addCartBtn">➕ إضافة للعربة</button>
+</div>
+
+<table id="cartTable">
+  <thead>
+    <tr>
+      <th>اسم الصنف</th>
+      <th>رمز الصنف</th>
+      <th>سعر البيع</th>
+      <th>الكمية</th>
+      <th>المجموع</th>
+      <th>الإجراءات</th>
+    </tr>
+  </thead>
+  <tbody></tbody>
+</table>
+<div id="summary">عدد القطع: 0 | الإجمالي: 0</div>
+
+<script>
+const items=[ // مثال بيانات
+  {name:"حليب بقري", code:"001", price:200},
+  {name:"عصير راني", code:"002", price:500},
+  {name:"بسكويت", code:"003", price:600}
+];
+
+let cart=[];
+const searchItem=document.getElementById("searchItem");
+const suggestions=document.getElementById("suggestions");
+const itemInfo=document.getElementById("itemInfo");
+const infoName=document.getElementById("infoName");
+const infoCode=document.getElementById("infoCode");
+const infoPrice=document.getElementById("infoPrice");
+const itemQty=document.getElementById("itemQty");
+const addCartBtn=document.getElementById("addCartBtn");
+const cartTableBody=document.querySelector("#cartTable tbody");
+const summary=document.getElementById("summary");
+let selectedItem=null;
+
+// بحث تفاعلي
+searchItem.addEventListener("input",()=>{
+  const val=searchItem.value.trim().toLowerCase();
+  if(!val){ suggestions.style.display="none"; return; }
+  const matches=items.filter(it=>it.name.toLowerCase().includes(val) || it.code.toLowerCase().includes(val));
+  if(matches.length===0){ suggestions.style.display="none"; return; }
+  suggestions.innerHTML=matches.map(it=>`<div style="padding:5px;cursor:pointer;" onclick='selectItem(${JSON.stringify(it)})'>${it.name} | ${it.code}</div>`).join('');
+  suggestions.style.display="block";
+});
+
+function selectItem(item){
+  searchItem.value=item.name;
+  suggestions.style.display="none";
+  showItem(item);
+}
+
+function showItem(item){
+  selectedItem=item;
+  infoName.textContent=item.name;
+  infoCode.textContent=item.code;
+  infoPrice.textContent=item.price;
+  itemQty.value=1;
+  itemInfo.style.display="block";
+}
+
+// إضافة للعربة
+addCartBtn.addEventListener("click",()=>{
+  if(!selectedItem) return;
+  const qty=Number(itemQty.value);
+  if(qty<1) return;
+  const subtotal=selectedItem.price*qty;
+  const existing=cart.find(c=>c.code===selectedItem.code);
+  if(existing) existing.qty+=qty;
+  else cart.push({name:selectedItem.name,code:selectedItem.code,price:selectedItem.price,qty});
+  updateCartTable();
+  itemInfo.style.display="none";
+  searchItem.value="";
+  selectedItem=null;
+});
+
+function updateCartTable(){
+  cartTableBody.innerHTML="";
+  let totalQty=0,totalPrice=0;
+  cart.forEach((c,i)=>{
+    const subtotal=c.price*c.qty;
+    totalQty+=c.qty; totalPrice+=subtotal;
+    const row=document.createElement("tr");
+    row.innerHTML=`<td>${c.name}</td><td>${c.code}</td><td>${c.price}</td><td>${c.qty}</td><td>${subtotal}</td>
+    <td class="action-buttons">
+      <button onclick="deleteCartItem(${i})" style="background-color:#dc3545;">🗑️ حذف</button>
+    </td>`;
+    cartTableBody.appendChild(row);
+  });
+  summary.textContent=`عدد القطع: ${totalQty} | الإجمالي: ${totalPrice}`;
+}
+
+function deleteCartItem(index){
+  cart.splice(index,1);
+  updateCartTable();
+}
+
+// إخفاء الاقتراحات عند النقر خارج الحقل
+document.addEventListener("click",e=>{
+  if(e.target!==searchItem) suggestions.style.display="none";
+});
+
+// مثال: إضافة ماسح QR (HTML5 QR Code) لاحقاً
+let isScanning=false;
+const reader=document.createElement("div");
+const html5QrCode=new Html5Qrcode("reader");
+const scanBtn=document.getElementById("scanBtn");
+scanBtn.addEventListener("click",async()=>{
+  alert("ميزة المسح يمكن اضافتها لاحقًا بنفس طريقة البحث التفاعلي");
+});
+</script>
+
+</div>
+</body>
+</html>
+

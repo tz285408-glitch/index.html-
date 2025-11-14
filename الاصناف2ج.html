@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>📦 إدارة الأصناف المتقدمة</title>
+<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Tajawal&display=swap');
+  body{font-family:"Tajawal",sans-serif;direction:rtl;background-color:#f0f8ff;margin:0;padding:0;}
+  h2{text-align:center;color:#0d6efd;margin:20px 0;}
+  .container{width:100%;padding:20px;box-sizing:border-box;}
+  form{background-color:#fff;padding:20px;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,0.1);margin-bottom:20px;}
+  label{display:block;margin-top:10px;font-weight:bold;color:#333;}
+  input{width:100%;padding:10px;margin-top:5px;border-radius:8px;border:1px solid #ccc;box-sizing:border-box;}
+  button{margin-top:10px;padding:10px 16px;cursor:pointer;border:none;border-radius:8px;background-color:#0d6efd;color:#fff;font-weight:bold;transition:0.3s;}
+  button:hover{background-color:#084298;}
+  #reader{width:100%;max-width:400px;margin:20px auto;display:none;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.1);}
+  .table-container{width:100%;overflow-x:auto;}
+  table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:10px;margin:0;}
+  th,td{padding:8px;text-align:center;border:1px solid #ccc;overflow-wrap:break-word;white-space:normal;}
+  th{background-color:#0d6efd;color:#fff;cursor:pointer;}
+  tr:nth-child(even){background-color:#e7f1ff;}
+  tr:hover{background-color:#d0e4ff;}
+  td.actions{white-space:nowrap;}
+  .action-buttons{display:flex;gap:5px;justify-content:center;transform:translateX(-10px);}
+  .search,.sort,.export,.import{margin:10px 0;padding:10px;border-radius:8px;border:1px solid #ccc;box-sizing:border-box;}
+  .export{background-color:#808080;color:#fff;}
+  .export:hover{background-color:#5e5e5e;}
+  #successMark{
+    position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+    font-size:70px;color:#28a745;display:none;animation:pop 0.4s ease;
+  }
+  @keyframes pop{0%{transform:scale(0.5) translate(-50%,-50%);opacity:0;}100%{transform:scale(1) translate(-50%,-50%);opacity:1;}}
+  @media(max-width:768px){input,button,.search,.sort,.export,.import{width:100%;margin-top:10px;}}
+</style>
+</head>
+<body>
+<h2>📦 إدارة الأصناف المتقدمة</h2>
+<div class="container">
+<form id="itemForm">
+  <label>اسم الصنف:</label>
+  <input type="text" id="itemName" placeholder="اكتب اسم الصنف" required>
+
+  <label>رمز الصنف (باركود أو QR):</label>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;">
+    <input type="text" id="itemCode" placeholder="امسح أو اكتب الرمز" style="flex:1;" required>
+    <button type="button" id="scanBtn">📷 مسح</button>
+  </div>
+  <div id="reader"></div>
+
+  <label>الوحدة:</label>
+  <input type="text" id="itemUnit" placeholder="الوحدة مثل: حبة، كيلو، لتر" required>
+
+  <label>سعر الشراء:</label>
+  <input type="number" id="itemCost" placeholder="سعر الشراء">
+
+  <label>سعر البيع:</label>
+  <input type="number" id="itemPrice" placeholder="سعر البيع">
+
+  <button type="submit">💾 حفظ الصنف</button>
+</form>
+
+<input type="text" class="search" id="searchInput" placeholder="🔍 ابحث عن أي صنف">
+
+<div style="display:flex;gap:10px;flex-wrap:wrap;">
+  <select id="sortSelect" class="sort">
+    <option value="">-- فرز حسب --</option>
+    <option value="name-asc">اسم الصنف تصاعدي</option>
+    <option value="name-desc">اسم الصنف تنازلي</option>
+    <option value="code-asc">رمز الصنف تصاعدي</option>
+    <option value="code-desc">رمز الصنف تنازلي</option>
+    <option value="cost-asc">أقل سعر شراء</option>
+    <option value="cost-desc">أعلى سعر شراء</option>
+    <option value="price-asc">أقل سعر بيع</option>
+    <option value="price-desc">أعلى سعر بيع</option>
+  </select>
+
+  <button class="export" id="exportExcel">📄 تصدير Excel</button>
+  <button class="export" id="exportPDF">📄 تصدير PDF</button>
+  <input type="file" id="importExcel" class="import" accept=".xlsx,.xls">
+</div>
+
+<div class="table-container">
+<table id="itemsTable">
+  <thead>
+    <tr>
+      <th style="width:25%;">اسم الصنف</th>
+      <th style="width:15%;">رمز الصنف</th>
+      <th style="width:15%;">الوحدة</th>
+      <th style="width:15%;">سعر الشراء</th>
+      <th style="width:15%;">سعر البيع</th>
+      <th style="width:15%;">الإجراءات</th>
+    </tr>
+  </thead>
+  <tbody></tbody>
+</table>
+</div>
+
+<audio id="beep" src="https://www.soundjay.com/button/sounds/beep-07.mp3" preload="auto"></audio>
+<div id="successMark">✅</div>
+
+<script>
+const itemForm=document.getElementById("itemForm"),tableBody=document.querySelector("#itemsTable tbody");
+const itemName=document.getElementById("itemName"),itemCode=document.getElementById("itemCode");
+const itemUnit=document.getElementById("itemUnit"),itemCost=document.getElementById("itemCost"),itemPrice=document.getElementById("itemPrice");
+const searchInput=document.getElementById("searchInput"),sortSelect=document.getElementById("sortSelect");
+const importExcel=document.getElementById("importExcel"),successMark=document.getElementById("successMark");
+const beep=document.getElementById("beep");
+let editIndex=null;
+
+function showSuccess(){beep.play();successMark.style.display="block";setTimeout(()=>successMark.style.display="none",2000);}
+
+function loadItems(){
+  tableBody.innerHTML="";
+  let items=JSON.parse(localStorage.getItem("items")||"[]");
+  const sortValue=sortSelect.value;
+  if(sortValue){
+    const [field,order]=sortValue.split("-");
+    items.sort((a,b)=>{
+      if(field==="name"||field==="code")return order==="asc"?a[field].localeCompare(b[field]):b[field].localeCompare(a[field]);
+      return order==="asc"?a[field]-b[field]:b[field]-a[field];
+    });
+  }
+  items.forEach((it,i)=>{
+    const tr=document.createElement("tr");
+    tr.innerHTML=`<td>${it.name}</td>
+      <td>${it.code}</td>
+      <td>${it.unit}</td>
+      <td>${it.cost||''}</td>
+      <td>${it.price||''}</td>
+      <td class="actions">
+        <div class="action-buttons">
+          <button onclick="editItem(${i})">✏️ تعديل</button>
+          <button onclick="deleteItem(${i})" style="background-color:#dc3545;">🗑️ حذف</button>
+        </div>
+      </td>`;
+    tableBody.appendChild(tr);
+  });
+}
+
+itemForm.addEventListener("submit",e=>{
+  e.preventDefault();
+  const items=JSON.parse(localStorage.getItem("items")||"[]");
+  const nameExists=items.some((it,i)=>it.name===itemName.value&&i!==editIndex);
+  const codeExists=items.some((it,i)=>it.code===itemCode.value&&i!==editIndex);
+  if(codeExists)return alert("رمز الصنف موجود مسبقًا");
+  if(nameExists&&!confirm("اسم الصنف موجود! هل تريد الاستمرار؟"))return;
+  const costVal=Number(itemCost.value||0),priceVal=Number(itemPrice.value||0);
+  if(costVal&&priceVal&&priceVal<costVal&&!confirm("سعر البيع أقل من سعر الشراء! هل تريد الاستمرار؟"))return;
+
+  const newItem={name:itemName.value,code:itemCode.value,unit:itemUnit.value,cost:itemCost.value,price:itemPrice.value};
+  if(editIndex!==null){items[editIndex]=newItem;editIndex=null;}else items.push(newItem);
+  localStorage.setItem("items",JSON.stringify(items));
+  itemForm.reset();loadItems();showSuccess();
+});
+
+window.editItem=i=>{
+  const it=JSON.parse(localStorage.getItem("items"))[i];
+  itemName.value=it.name;itemCode.value=it.code;itemUnit.value=it.unit;itemCost.value=it.cost;itemPrice.value=it.price;
+  editIndex=i;
+};
+
+window.deleteItem=i=>{
+  if(confirm("هل أنت متأكد من حذف هذا الصنف؟")){
+    const items=JSON.parse(localStorage.getItem("items")||"[]");
+    items.splice(i,1);
+    localStorage.setItem("items",JSON.stringify(items));
+    loadItems();
+  }
+};
+
+searchInput.addEventListener("input",()=>{
+  const f=searchInput.value.toLowerCase();
+  document.querySelectorAll("#itemsTable tbody tr").forEach(r=>{
+    r.style.display=r.innerText.toLowerCase().includes(f)?"":"none";
+  });
+});
+sortSelect.addEventListener("change",loadItems);
+
+document.getElementById("exportExcel").addEventListener("click",()=>{
+  const ws=XLSX.utils.json_to_sheet(JSON.parse(localStorage.getItem("items")||"[]"));
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"الأصناف");
+  XLSX.writeFile(wb,"Items.xlsx");
+});
+document.getElementById("exportPDF").addEventListener("click",()=>{
+  const items=JSON.parse(localStorage.getItem("items")||"[]");
+  const body=[['اسم الصنف','رمز الصنف','الوحدة','سعر الشراء','سعر البيع']];
+  items.forEach(it=>body.push([it.name,it.code,it.unit,it.cost||'',it.price||'']));
+  pdfMake.createPdf({content:[{table:{headerRows:1,widths:['*','*','*','*','*'],body}}]}).download("Items.pdf");
+});
+
+importExcel.addEventListener("change",e=>{
+  const f=e.target.files[0];if(!f)return;
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    const data=new Uint8Array(ev.target.result);
+    const wb=XLSX.read(data,{type:'array'});
+    const ws=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+    let items=JSON.parse(localStorage.getItem("items")||"[]");
+    ws.forEach(it=>items.push({
+      name:it['اسم الصنف']||it['name']||'',
+      code:it['رمز الصنف']||it['code']||'',
+      unit:it['الوحدة']||it['unit']||'',
+      cost:it['سعر الشراء']||it['cost']||'',
+      price:it['سعر البيع']||it['price']||''
+    }));
+    localStorage.setItem("items",JSON.stringify(items));
+    loadItems();showSuccess();alert("تم الإستيراد ✅");
+  };
+  reader.readAsArrayBuffer(f);
+});
+
+// QR Scanner
+const scanBtn=document.getElementById("scanBtn"),reader=document.getElementById("reader");
+const html5QrCode=new Html5Qrcode("reader");let isScanning=false;
+scanBtn.addEventListener("click",async()=>{
+  if(!isScanning){
+    const cameras=await Html5Qrcode.getCameras();
+    if(cameras && cameras.length){
+      let cameraId=cameras.find(c=>c.label.toLowerCase().includes("back"))?.id || cameras[cameras.length-1].id;
+      reader.style.display="block";
+      html5QrCode.start(cameraId,{fps:15,qrbox:{width:300,height:150}},decodedText=>{
+        itemCode.value=decodedText;showSuccess();html5QrCode.stop();reader.style.display="none";isScanning=false;scanBtn.textContent="📷 مسح";
+      });
+      isScanning=true;scanBtn.textContent="⏹️ إيقاف";
+    }
+  }else{html5QrCode.stop();reader.style.display="none";isScanning=false;scanBtn.textContent="📷 مسح";}
+});
+
+loadItems();
+</script>
+</body>
+</html>
