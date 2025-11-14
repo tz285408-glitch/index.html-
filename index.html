@@ -3,138 +3,503 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>شبكة الريان 5G</title>
+<title>📦 إدارة الأصناف المتقدمة</title>
+<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
 <style>
-  body {
-    font-family: "Tajawal", Arial, sans-serif;
-    direction: rtl;
-    background-color: #3E2F2F; /* بني غامق */
-    color: #F5E4D7; /* نص فاتح */
-    text-align: center;
-    padding: 20px;
-  }
+  @import url('https://fonts.googleapis.com/css2?family=Tajawal&display=swap');
+  body{font-family:"Tajawal",sans-serif;direction:rtl;background-color:#f0f8ff;margin:0;padding:0;}
+  h2{text-align:center;color:#0d6efd;margin:20px 0;}
+  .container{width:100%;padding:20px;box-sizing:border-box;}
+  form{background-color:#fff;padding:20px;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,0.1);margin-bottom:20px;}
+  label{display:block;margin-top:10px;font-weight:bold;color:#333;}
+  input{width:100%;padding:10px;margin-top:5px;border-radius:8px;border:1px solid #ccc;box-sizing:border-box;}
+  button{margin-top:10px;padding:10px 16px;cursor:pointer;border:none;border-radius:8px;background-color:#0d6efd;color:#fff;font-weight:bold;transition:0.3s;}
+  button:hover{background-color:#084298;}
+  #reader{width:100%;max-width:400px;margin:20px auto;display:none;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.1);}
+  .table-container{width:100%;overflow-x:auto;}
+  table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:10px;margin:0;}
+  th,td{padding:8px;text-align:center;border:1px solid #ccc;overflow-wrap:break-word;white-space:normal;}
+  th{background-color:#0d6efd;color:#fff;cursor:pointer;}
+  tr:nth-child(even){background-color:#e7f1ff;}
+  tr:hover{background-color:#d0e4ff;}
+  td.actions{white-space:nowrap;}
+  .action-buttons{display:flex;gap:5px;justify-content:center;transform:translateX(-10px);}
+  .search,.sort,.export,.import{margin:10px 0;padding:10px;border-radius:8px;border:1px solid #ccc;box-sizing:border-box;}
+  .export{background-color:#808080;color:#fff;}
+  .export:hover{background-color:#5e5e5e;}
+  #successMark{
+    position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+    font-size:70px;color:#28a745;display:none;animation:pop 0.4s ease;
+  }
+  @keyframes pop{0%{transform:scale(0.5) translate(-50%,-50%);opacity:0;}100%{transform:scale(1) translate(-50%,-50%);opacity:1;}}
+  @media(max-width:768px){input,button,.search,.sort,.export,.import{width:100%;margin-top:10px;}}
+</style>
+</head>
+<body>
+<h2>📦 إدارة الأصناف المتقدمة</h2>
+<div class="container">
+<form id="itemForm">
+  <label>اسم الصنف:</label>
+  <input type="text" id="itemName" placeholder="اكتب اسم الصنف" required>
 
-  .wifi-icon {
-    font-size: 80px;
-    color: #1E90FF; /* أزرق */
-    margin-bottom: 5px;
-    cursor: pointer;
-    user-select: none;
-  }
+  <label>رمز الصنف (باركود أو QR):</label>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;">
+    <input type="text" id="itemCode" placeholder="امسح أو اكتب الرمز" style="flex:1;" required>
+    <button type="button" id="scanBtn">📷 مسح</button>
+  </div>
+  <div id="reader"></div>
 
-  h1 {
-    color: #FFFFFF; /* أبيض */
-    font-weight: bold;
-    font-size: 28px;
-    margin-bottom: 30px;
-  }
+  <label>الوحدة:</label>
+  <input type="text" id="itemUnit" placeholder="الوحدة مثل: حبة، كيلو، لتر" required>
 
-  label {
-    font-weight: bold;
-    display: block;
-    margin-bottom: 8px;
-  }
+  <label>سعر الشراء:</label>
+  <input type="number" id="itemCost" placeholder="سعر الشراء">
 
-  input, button {
-    padding: 10px;
-    margin: 5px 0;
-    font-size: 16px;
-    border-radius: 8px;
-    border: none;
-  }
+  <label>سعر البيع:</label>
+  <input type="number" id="itemPrice" placeholder="سعر البيع">
 
-  input {
-    width: 80%;
-    max-width: 300px;
-    text-align: center;
-  }
+  <button type="submit">💾 حفظ الصنف</button>
+</form>
 
-  button {
-    background-color: #A0522D; /* بني متوسط */
-    color: #F5E4D7;
-    cursor: pointer;
-    transition: background-color 0.3s;
-  }
+<input type="text" class="search" id="searchInput" placeholder="🔍 ابحث عن أي صنف">
 
-  button:hover {
-    background-color: #8B4513; /* بني أغمق عند المرور */
-  }
+<div style="display:flex;gap:10px;flex-wrap:wrap;">
+  <select id="sortSelect" class="sort">
+    <option value="">-- فرز حسب --</option>
+    <option value="name-asc">اسم الصنف تصاعدي</option>
+    <option value="name-desc">اسم الصنف تنازلي</option>
+    <option value="code-asc">رمز الصنف تصاعدي</option>
+    <option value="code-desc">رمز الصنف تنازلي</option>
+    <option value="cost-asc">أقل سعر شراء</option>
+    <option value="cost-desc">أعلى سعر شراء</option>
+    <option value="price-asc">أقل سعر بيع</option>
+    <option value="price-desc">أعلى سعر بيع</option>
+  </select>
 
-  #clipboard {
-    margin: 25px auto;
-    padding: 10px;
-    border: 1px solid #F5E4D7;
-    min-height: 30px;
-    width: 80%;
-    max-width: 350px;
-    border-radius: 10px;
-    background-color: #5C4033;
-    text-align: center;
-  }
+  <button class="export" id="exportExcel">📄 تصدير Excel</button>
+  <button class="export" id="exportPDF">📄 تصدير PDF</button>
+  <input type="file" id="importExcel" class="import" accept=".xlsx,.xls">
+</div>
 
-  #savedNumber {
-    font-weight: bold;
-    color: #FFD700; /* ذهبي */
-  }
+<div class="table-container">
+<table id="itemsTable">
+  <thead>
+    <tr>
+      <th style="width:25%;">اسم الصنف</th>
+      <th style="width:15%;">رمز الصنف</th>
+      <th style="width:15%;">الوحدة</th>
+      <th style="width:15%;">سعر الشراء</th>
+      <th style="width:15%;">سعر البيع</th>
+      <th style="width:15%;">الإجراءات</th>
+    </tr>
+  </thead>
+  <tbody></tbody>
+</table>
+</div>
+
+<audio id="beep" src="https://www.soundjay.com/button/sounds/beep-07.mp3" preload="auto"></audio>
+<div id="successMark">✅</div>
+
+<script>
+const itemForm=document.getElementById("itemForm"),tableBody=document.querySelector("#itemsTable tbody");
+const itemName=document.getElementById("itemName"),itemCode=document.getElementById("itemCode");
+const itemUnit=document.getElementById("itemUnit"),itemCost=document.getElementById("itemCost"),itemPrice=document.getElementById("itemPrice");
+const searchInput=document.getElementById("searchInput"),sortSelect=document.getElementById("sortSelect");
+const importExcel=document.getElementById("importExcel"),successMark=document.getElementById("successMark");
+const beep=document.getElementById("beep");
+let editIndex=null;
+
+function showSuccess(){beep.play();successMark.style.display="block";setTimeout(()=>successMark.style.display="none",2000);}
+
+function loadItems(){
+  tableBody.innerHTML="";
+  let items=JSON.parse(localStorage.getItem("items")||"[]");
+  const sortValue=sortSelect.value;
+  if(sortValue){
+    const [field,order]=sortValue.split("-");
+    items.sort((a,b)=>{
+      if(field==="name"||field==="code")return order==="asc"?a[field].localeCompare(b[field]):b[field].localeCompare(a[field]);
+      return order==="asc"?a[field]-b[field]:b[field]-a[field];
+    });
+  }
+  items.forEach((it,i)=>{
+    const tr=document.createElement("tr");
+    tr.innerHTML=`<td>${it.name}</td>
+      <td>${it.code}</td>
+      <td>${it.unit}</td>
+      <td>${it.cost||''}</td>
+      <td>${it.price||''}</td>
+      <td class="actions">
+        <div class="action-buttons">
+          <button onclick="editItem(${i})">✏️ تعديل</button>
+          <button onclick="deleteItem(${i})" style="background-color:#dc3545;">🗑️ حذف</button>
+        </div>
+      </td>`;
+    tableBody.appendChild(tr);
+  });
+}
+
+itemForm.addEventListener("submit",e=>{
+  e.preventDefault();
+  const items=JSON.parse(localStorage.getItem("items")||"[]");
+  const nameExists=items.some((it,i)=>it.name===itemName.value&&i!==editIndex);
+  const codeExists=items.some((it,i)=>it.code===itemCode.value&&i!==editIndex);
+  if(codeExists)return alert("رمز الصنف موجود مسبقًا");
+  if(nameExists&&!confirm("اسم الصنف موجود! هل تريد الاستمرار؟"))return;
+  const costVal=Number(itemCost.value||0),priceVal=Number(itemPrice.value||0);
+  if(costVal&&priceVal&&priceVal<costVal&&!confirm("سعر البيع أقل من سعر الشراء! هل تريد الاستمرار؟"))return;
+
+  const newItem={name:itemName.value,code:itemCode.value,unit:itemUnit.value,cost:itemCost.value,price:itemPrice.value};
+  if(editIndex!==null){items[editIndex]=newItem;editIndex=null;}else items.push(newItem);
+  localStorage.setItem("items",JSON.stringify(items));
+  itemForm.reset();loadItems();showSuccess();
+});
+
+window.editItem=i=>{
+  const it=JSON.parse(localStorage.getItem("items"))[i];
+  itemName.value=it.name;itemCode.value=it.code;itemUnit.value=it.unit;itemCost.value=it.cost;itemPrice.value=it.price;
+  editIndex=i;
+};
+
+window.deleteItem=i=>{
+  if(confirm("هل أنت متأكد من حذف هذا الصنف؟")){
+    const items=JSON.parse(localStorage.getItem("items")||"[]");
+    items.splice(i,1);
+    localStorage.setItem("items",JSON.stringify(items));
+    loadItems();
+  }
+};
+
+searchInput.addEventListener("input",()=>{
+  const f=searchInput.value.toLowerCase();
+  document.querySelectorAll("#itemsTable tbody tr").forEach(r=>{
+    r.style.display=r.innerText.toLowerCase().includes(f)?"":"none";
+  });
+});
+sortSelect.addEventListener("change",loadItems);
+
+document.getElementById("exportExcel").addEventListener("click",()=>{
+  const ws=XLSX.utils.json_to_sheet(JSON.parse(localStorage.getItem("items")||"[]"));
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"الأصناف");
+  XLSX.writeFile(wb,"Items.xlsx");
+});
+document.getElementById("exportPDF").addEventListener("click",()=>{
+  const items=JSON.parse(localStorage.getItem("items")||"[]");
+  const body=[['اسم الصنف','رمز الصنف','الوحدة','سعر الشراء','سعر البيع']];
+  items.forEach(it=>body.push([it.name,it.code,it.unit,it.cost||'',it.price||'']));
+  pdfMake.createPdf({content:[{table:{headerRows:1,widths:['*','*','*','*','*'],body}}]}).download("Items.pdf");
+});
+
+importExcel.addEventListener("change",e=>{
+  const f=e.target.files[0];if(!f)return;
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    const data=new Uint8Array(ev.target.result);
+    const wb=XLSX.read(data,{type:'array'});
+    const ws=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+    let items=JSON.parse(localStorage.getItem("items")||"[]");
+    ws.forEach(it=>items.push({
+      name:it['اسم الصنف']||it['name']||'',
+      code:it['رمز الصنف']||it['code']||'',
+      unit:it['الوحدة']||it['unit']||'',
+      cost:it['سعر الشراء']||it['cost']||'',
+      price:it['سعر البيع']||it['price']||''
+    }));
+    localStorage.setItem("items",JSON.stringify(items));
+    loadItems();showSuccess();alert("تم الإستيراد ✅");
+  };
+  reader.readAsArrayBuffer(f);
+});
+
+// QR Scanner
+const scanBtn=document.getElementById("scanBtn"),reader=document.getElementById("reader");
+const html5QrCode=new Html5Qrcode("reader");let isScanning=false;
+scanBtn.addEventListener("click",async()=>{
+  if(!isScanning){
+    const cameras=await Html5Qrcode.getCameras();
+    if(cameras && cameras.length){
+      let cameraId=cameras.find(c=>c.label.toLowerCase().includes("back"))?.id || cameras[cameras.length-1].id;
+      reader.style.display="block";
+      html5QrCode.start(cameraId,{fps:15,qrbox:{width:300,height:150}},decodedText=>{
+        itemCode.value=decodedText;showSuccess();html5QrCode.stop();reader.style.display="none";isScanning=false;scanBtn.textContent="📷 مسح";
+      });
+      isScanning=true;scanBtn.textContent="⏹️ إيقاف";
+    }
+  }else{html5QrCode.stop();reader.style.display="none";isScanning=false;scanBtn.textContent="📷 مسح";}
+});
+
+loadItems();
+</script>
+</body>
+</html>
+
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>عربيتي - إدارة الأصناف</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Tajawal&display=swap');
+body{font-family:"Tajawal",sans-serif;direction:rtl;background-color:#f0f8ff;margin:0;padding:0;}
+h2{text-align:center;color:#0d6efd;margin:20px 0;}
+.container{width:100%;padding:20px;box-sizing:border-box;}
+input, button{padding:10px;border-radius:8px;border:1px solid #ccc;font-size:14px;}
+button{cursor:pointer;background-color:#0d6efd;color:#fff;border:none;margin-top:5px;}
+button:hover{background-color:#084298;}
+#suggestions{background:#fff;position:absolute;z-index:1000;width:100%;border:1px solid #ccc;border-radius:8px;display:none;max-height:150px;overflow-y:auto;}
+table{width:100%;border-collapse:collapse;margin-top:15px;}
+th,td{border:1px solid #ccc;padding:8px;text-align:center;white-space:normal;overflow-wrap:break-word;}
+th{background-color:#0d6efd;color:#fff;}
+tr:nth-child(even){background-color:#e7f1ff;}
+tr:hover{background-color:#d0e4ff;}
+.action-buttons{display:flex;gap:5px;justify-content:center;}
+#summary{margin-top:10px;font-weight:bold;}
+#previousCartsContainer div{margin-bottom:15px;}
+#exitPreviousCartsBtn{margin:10px;background-color:#dc3545;color:#fff;padding:10px;border:none;border-radius:8px;cursor:pointer;}
 </style>
 </head>
 <body>
 
-<!-- أيقونة الواي فاي -->
-<div class="wifi-icon" id="wifiIcon" title="اضغط لإظهار الرقم">🛜</div>
-<h1>شبكة الريان 5G</h1>
+<h2>🛒 عربيتي</h2>
 
-<label for="userNumber">أدخل الرقم:</label>
-<input type="text" id="userNumber" placeholder="أدخل رقمك هنا">
-<br>
-<button onclick="saveNumber()">تسجيل الدخول</button>
+<!-- زر العودة دائمًا ظاهر عند العربيات السابقة -->
+<button id="exitPreviousCartsBtn" style="display:none;">❌ العودة للعربة الحالية</button>
 
-<h3>تحديد السرعة ^:</h3>
-<div id="clipboard">لا يوجد أرقام محفوظة بعد.</div>
+<div class="container">
+
+<label>اسم الصنف أو رمز الصنف:</label>
+<div style="position:relative;display:flex;gap:10px;">
+  <input type="text" id="searchItem" placeholder="اكتب الاسم أو امسح الرمز" style="flex:1;" autocomplete="off">
+  <div id="suggestions"></div>
+  <button type="button" id="scanBtn">📷 مسح</button>
+</div>
+
+<div id="itemInfo" style="display:none;margin-top:10px;">
+  <p>اسم الصنف: <span id="infoName"></span></p>
+  <p>رمز الصنف: <span id="infoCode"></span></p>
+  <p>سعر البيع: <span id="infoPrice"></span></p>
+  <label>الكمية:</label>
+  <input type="number" id="itemQty" value="1" min="1" style="width:80px;">
+  <button id="addCartBtn">➕ إضافة للعربة</button>
+</div>
+
+<table id="cartTable">
+  <thead>
+    <tr>
+      <th>اسم الصنف</th>
+      <th>رمز الصنف</th>
+      <th>سعر البيع</th>
+      <th>الكمية</th>
+      <th>المجموع</th>
+      <th>الإجراءات</th>
+    </tr>
+  </thead>
+  <tbody></tbody>
+</table>
+<div id="summary">عدد القطع: 0 | الإجمالي: 0</div>
+
+<button id="saveCartBtn">💾 حفظ السلة</button>
+<button id="newCartBtn">🆕 إضافة سلة جديدة</button>
+<button id="previousCartsBtn">📂 العربيات السابقة</button>
+
+<div id="previousCartsContainer" style="display:none;"></div>
 
 <script>
-const wifiIcon = document.getElementById('wifiIcon');
-const clipboard = document.getElementById('clipboard');
-let isShown = false;
+// بيانات أصناف تجريبية
+const items=[
+  {name:"حليب بقري كبير", code:"001", price:200},
+  {name:"عصير راني", code:"002", price:500},
+  {name:"بسكويت", code:"003", price:600}
+];
 
-// عند التحميل: جلب الرقم المحفوظ من التخزين
-window.onload = function() {
-  const saved = localStorage.getItem('savedNumber');
-  if(saved) {
-    clipboard.textContent = '(تمنا لكم وقت اطول )';
-  }
-};
+let cart=[];
+const searchItem=document.getElementById("searchItem");
+const suggestions=document.getElementById("suggestions");
+const itemInfo=document.getElementById("itemInfo");
+const infoName=document.getElementById("infoName");
+const infoCode=document.getElementById("infoCode");
+const infoPrice=document.getElementById("infoPrice");
+const itemQty=document.getElementById("itemQty");
+const addCartBtn=document.getElementById("addCartBtn");
+const cartTableBody=document.querySelector("#cartTable tbody");
+const summary=document.getElementById("summary");
 
-// حفظ الرقم
-function saveNumber() {
-  const input = document.getElementById('userNumber').value.trim();
-  if(input === '') {
-    alert('الرجاء إدخال رقم.');
-    return;
-  }
+const saveCartBtn=document.getElementById("saveCartBtn");
+const newCartBtn=document.getElementById("newCartBtn");
+const previousCartsBtn=document.getElementById("previousCartsBtn");
+const exitPreviousCartsBtn=document.getElementById("exitPreviousCartsBtn");
+const previousCartsContainer=document.getElementById("previousCartsContainer");
 
-  localStorage.setItem('savedNumber', input);
-  clipboard.textContent = 'تم تسجيل الدخول✅)';
-  document.getElementById('userNumber').value = '';
+let selectedItem=null;
+let username = prompt("ادخل اسم المستخدم:")||"guest";
+
+// بحث تفاعلي
+searchItem.addEventListener("input",()=>{
+  const val=searchItem.value.trim().toLowerCase();
+  if(!val){ suggestions.style.display="none"; return; }
+  const matches=items.filter(it=>it.name.toLowerCase().includes(val) || it.code.toLowerCase().includes(val));
+  if(matches.length===0){ suggestions.style.display="none"; return; }
+  suggestions.innerHTML=matches.map(it=>`<div style="padding:5px;cursor:pointer;" onclick='selectItem(${JSON.stringify(it)})'>${it.name} | ${it.code}</div>`).join('');
+  suggestions.style.display="block";
+});
+
+function selectItem(item){
+  searchItem.value=item.name;
+  suggestions.style.display="none";
+  showItem(item);
 }
 
-// عند الضغط على الإيموجي 🛜
-wifiIcon.addEventListener('click', () => {
-  const saved = localStorage.getItem('savedNumber');
-  if(!saved) {
-    alert('لا يوجد رقم محفوظ بعد.');
-    return;
-  }
+function showItem(item){
+  selectedItem=item;
+  infoName.textContent=item.name;
+  infoCode.textContent=item.code;
+  infoPrice.textContent=item.price;
+  itemQty.value=1;
+  itemInfo.style.display="block";
+}
 
-  if(isShown) {
-    clipboard.textContent = 'رقم محفوظ ✅ (اضغط على 🛜 لعرضه)';
-    isShown = false;
-  } else {
-    clipboard.textContent = '📱 الرقم المحفوظ: ' + saved;
-    isShown = true;
-  }
+// إضافة للعربة
+addCartBtn.addEventListener("click",()=>{
+  if(!selectedItem) return;
+  const qty=Number(itemQty.value);
+  if(qty<1) return;
+  const existing=cart.find(c=>c.code===selectedItem.code);
+  if(existing) existing.qty+=qty;
+  else cart.push({name:selectedItem.name,code:selectedItem.code,price:selectedItem.price,qty});
+  updateCartTable();
+  itemInfo.style.display="none";
+  searchItem.value="";
+  selectedItem=null;
 });
+
+function updateCartTable(){
+  cartTableBody.innerHTML="";
+  let totalQty=0,totalPrice=0;
+  cart.forEach((c,i)=>{
+    const subtotal=c.price*c.qty;
+    totalQty+=c.qty; totalPrice+=subtotal;
+    const row=document.createElement("tr");
+    row.innerHTML=`<td>${c.name}</td><td>${c.code}</td><td>${c.price}</td><td>${c.qty}</td><td>${subtotal}</td>
+    <td class="action-buttons">
+      <button onclick="deleteCartItem(${i})" style="background-color:#dc3545;">🗑️ حذف</button>
+    </td>`;
+    cartTableBody.appendChild(row);
+  });
+  summary.textContent=`عدد القطع: ${totalQty} | الإجمالي: ${totalPrice}`;
+}
+
+function deleteCartItem(index){
+  cart.splice(index,1);
+  updateCartTable();
+}
+
+// إخفاء الاقتراحات عند النقر خارج الحقل
+document.addEventListener("click",e=>{
+  if(e.target!==searchItem) suggestions.style.display="none";
+});
+
+// حفظ السلة
+saveCartBtn.addEventListener("click",()=>{
+  if(cart.length===0){ alert("لا توجد عناصر لحفظها!"); return; }
+  let allCarts=JSON.parse(localStorage.getItem(`userCarts_${username}`)||"[]");
+  const newId=allCarts.length+1;
+  const now=new Date();
+  const dateStr=now.toLocaleString("ar-YE",{hour12:false});
+  const newCart={id:newId,date:dateStr,items:JSON.parse(JSON.stringify(cart))};
+  allCarts.push(newCart);
+  localStorage.setItem(`userCarts_${username}`,JSON.stringify(allCarts));
+  cart=[];
+  updateCartTable();
+  alert("تم حفظ السلة ✅");
+});
+
+// إضافة سلة جديدة
+newCartBtn.addEventListener("click",()=>{
+  if(cart.length===0){ cart=[]; updateCartTable(); alert("تم فتح سلة جديدة ✅"); return; }
+  const saveCurrent = confirm("هل تريد حفظ السلة الحالية؟");
+  if(saveCurrent){
+    let allCarts=JSON.parse(localStorage.getItem(`userCarts_${username}`)||"[]");
+    const newId=allCarts.length+1;
+    const now=new Date();
+    const dateStr=now.toLocaleString("ar-YE",{hour12:false});
+    const newCart={id:newId,date:dateStr,items:JSON.parse(JSON.stringify(cart))};
+    allCarts.push(newCart);
+    localStorage.setItem(`userCarts_${username}`,JSON.stringify(allCarts));
+    alert("تم حفظ السلة ✅");
+  }
+  cart=[]; updateCartTable(); alert("تم فتح سلة جديدة ✅");
+});
+
+// عرض العربيات السابقة
+previousCartsBtn.addEventListener("click",()=>{
+  document.querySelector(".container").style.display="none"; 
+  previousCartsContainer.style.display="block"; 
+  exitPreviousCartsBtn.style.display="inline-block"; 
+  displayPreviousCarts();
+});
+
+function displayPreviousCarts(){
+  let allCarts=JSON.parse(localStorage.getItem(`userCarts_${username}`)||"[]");
+  if(allCarts.length===0){ 
+    previousCartsContainer.innerHTML="<p>لا توجد عربيات محفوظة.</p>"; 
+    return; 
+  }
+  previousCartsContainer.innerHTML="";
+  allCarts.forEach(cart=>{
+    const div=document.createElement("div");
+    div.style.background="#fff";
+    div.style.padding="10px";
+    div.style.marginBottom="15px";
+    div.style.borderRadius="12px";
+    div.style.boxShadow="0 4px 12px rgba(0,0,0,0.1)";
+
+    let tableHTML=`<p><strong>رقم السلة:</strong> ${cart.id} | <strong>التاريخ والوقت:</strong> ${cart.date}</p>`;
+    tableHTML+=`<div style="overflow-x:auto;"><table><thead>
+      <tr>
+        <th>اسم الصنف</th>
+        <th>رمز الصنف</th>
+        <th>سعر البيع</th>
+        <th>الكمية</th>
+        <th>المجموع</th>
+      </tr></thead><tbody>`;
+
+    let totalQty=0, totalPrice=0;
+    cart.items.forEach(it=>{
+      const subtotal=it.price*it.qty;
+      totalQty+=it.qty;
+      totalPrice+=subtotal;
+      tableHTML+=`<tr>
+        <td>${it.name}</td>
+        <td>${it.code}</td>
+        <td>${it.price}</td>
+        <td>${it.qty}</td>
+        <td>${subtotal}</td>
+      </tr>`;
+    });
+
+    tableHTML+=`</tbody></table></div>`;
+    tableHTML+=`<p><strong>عدد القطع:</strong> ${totalQty} | <strong>الإجمالي:</strong> ${totalPrice}</p>`;
+    div.innerHTML=tableHTML;
+    previousCartsContainer.appendChild(div);
+  });
+}
+
+// زر الرجوع ❌
+exitPreviousCartsBtn.addEventListener("click",()=>{
+  previousCartsContainer.style.display="none";
+  document.querySelector(".container").style.display="block";
+  exitPreviousCartsBtn.style.display="none";
+});
+
+// مسح QR (مستقبلي)
+const scanBtn=document.getElementById("scanBtn");
+scanBtn.addEventListener("click",async()=>{ alert("ميزة المسح يمكن اضافتها لاحقًا بنفس طريقة البحث"); });
+
 </script>
 
 </body>
-</html>
+    </html>
